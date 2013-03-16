@@ -81,53 +81,114 @@ private str genJavaActions(JENV jenv){
 	list[str] output = [];
 	list[str] created = [];	
 	for(obj <- jenv.qstns){
-		if(obj.condExpr notin created){
+		if((obj.condExpr notin created) && (obj.id notin created)){
 			output += genJavaAction(jenv,obj);
 			created += obj.condExpr;
 		}
 	}
 	return ListToStr(output);
 }
+/**
+* This function will generate the JAVA funcionality 
+*/ 
 private str genJavaAction(JENV jenv, tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] theObj){
 	str header = "";
 	str objects = "";
+	str elseObjects = "";
+	str rmvObjects = "";
+	str rmvElseObjects = "";
 	str output = "";
 	list[str] tempCond = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == "")];
 	list[str] created = [];
 	list[str] listObj = [];
-		if(theObj.condExpr in tempCond){
-			header  = 	"public void check<theObj.condExpr>(){
-						'<theObj.cond>(B<theObj.condExpr>){
-						' 	B<theObj.condExpr> = false;
-						'	<theObj.condExpr> = \"Yes\";
-						'	map.put(\"<theObj.condExpr>\", <theObj.condExpr>);";
+	list[str] listElseObj = [];
+	
+	if(theObj.condExpr in tempCond){
+			for(obj <- jenv.qstns){
+				if(obj.condExpr == theObj.condExpr){
+					if(obj.cond == "if else"){
+						rmvObjects +=  "panel.remove(<obj.id>jLabel);\n";
+						if(obj.qstnDataType == "boolean"){
+							rmvObjects +=  "panel.remove(<obj.id>yes);\n";
+						}else{
+							rmvObjects +=  "panel.remove(<obj.id>Textf);\n";
+						}
+					}
+					if(obj.cond == "else"){
+						rmvElseObjects +=  "panel.remove(<obj.id>jLabel);\n";
+						if(obj.qstnDataType == "boolean"){
+							rmvElseObjects +=  "panel.remove(<obj.id>yes);\n";
+						}else{
+							rmvElseObjects +=  "panel.remove(<obj.id>Textf);\n";
+						}
+					}
+				}
+			}
 		for(obj <- jenv.qstns){
-			if((obj.id notin created) && (obj.expr == "") && (obj.condExpr == theObj.condExpr)){
+			if((obj.id notin created) && (obj.expr == "") && (obj.condExpr == theObj.condExpr) && (obj.cond != "else")){
 				listObj += genJavaSimObjHandlers(obj);
 				created += obj.id;
 			}
 		}
-	listObj = reverse(listObj);
+		listObj = reverse(listObj);	
+		
 		for(obj <- jenv.qstns){
-			if((obj.id notin created) && !(obj.expr == "") &&(obj.condExpr == theObj.condExpr)){
+			if((obj.id notin created) && !(obj.expr == "") &&(obj.condExpr == theObj.condExpr) && (obj.cond != "else")){
 				listObj += genJavaCompObjHandlers(obj);
 				created += obj.id;
 			}
 		}
-	objects += ListToStr(listObj);	
-	output += 	"<header>
-				' 	<objects>
-	 			'panel.revalidate();
-				'validate();
-				'pack(); 
-				'	}
-				'}\n";	
-	}			
+		objects += ListToStr(listObj);	
+			
+			header  = 	"public void check<theObj.condExpr>(){
+						'	if(<theObj.condExpr>yes.isSelected()){
+						'		<theObj.condExpr> = \"Yes\";
+						'		map.put(\"<theObj.condExpr>\", <theObj.condExpr>);";
+		
+		if(theObj.cond == "if"){
+			output += 	"<header>
+					' 	<objects>
+	 				'panel.revalidate();
+					'validate();
+					'pack(); 
+					'	}
+					'}\n";	
+		} else {
+			for(obj <- jenv.qstns){
+				if((obj.id notin created) && (obj.expr == "") && (obj.condExpr == theObj.condExpr) && (obj.cond == "else")){
+					listElseObj += genJavaSimObjHandlers(obj);
+					created += obj.id;
+				}
+			}
+			for(obj <- jenv.qstns){
+				if((obj.id notin created) && !(obj.expr == "") &&(obj.condExpr == theObj.condExpr) && (obj.cond == "else")){
+					listElseObj += genJavaCompObjHandlers(obj);
+					created += obj.id;
+				}
+			}
+			elseObjects += ListToStr(listElseObj);	
+					output += 	"<header>
+								' 	<objects>
+								'<rmvElseObjects>
+								'panel.revalidate();
+								'validate();
+								'pack(); 
+								' } else {
+								'	<elseObjects>
+								'<rmvObjects>
+	 							'panel.revalidate();
+								'validate();
+								'pack(); 
+								'	}
+								'}\n";
+		}
+	}					
 	return output;			
 }
 
 private str genJavaSimpleAction(JENV jenv){
 	str output = "";
+	str temp = "";
 	list[str] tempCond = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == "")];
 	list[str] lsOutput = [];
 	for(obj <- jenv.qstns){
@@ -212,8 +273,7 @@ private str genJavaObjects(JENV jenv){
 				'String <obj.id> = \"No Answer\";
 				'JLabel <obj.id>jLabel = new JLabel(<obj.id>label);\n";	
 			if(obj.qstnDataType == "boolean"){ 
-			output += 	"boolean B<obj.id> = true;
-						'final JCheckBox <obj.id>yes = new JCheckBox(\"Yes\");\n";
+			output += "final JCheckBox <obj.id>yes = new JCheckBox(\"Yes\");\n";
 			}
 			if((obj.qstnDataType == "int") && (obj.expr == "")){
 				output += "final JTextField <obj.id>Textf = new JTextField(5);\n";	

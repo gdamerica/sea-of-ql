@@ -47,7 +47,7 @@ private JENV genJenv(singleIfCondition(Expr ifEval, list[Element] ifQstns), JENV
 
 private JENV genJenv(ifElseCondition(Expr ifEval, list[Element] ifQstns, list[Element] elseQstns), JENV jenv){
 	jenv0 = genIfElseCondQstn(ifQstns, jenv, genStrExpr(ifEval));
-	return jenv1 = genElseCondQstn(elseQstns, jenv0);
+	return jenv1 = genElseCondQstn(elseQstns, jenv0, genStrExpr(ifEval));
 }
 
 private JENV genIfCondQstn(list[Element] ifQstns, JENV jenv, str condExpr){
@@ -65,17 +65,17 @@ private JENV genIfElseCondQstn(list[Element] ifQstns, JENV jenv, str condExpr){
 		case qstn:singleQuestion(str qstnIdent, str qstnLabel, DataType qstnDataType) 
 			: jenv = addJavaQstn(jenv, qstnIdent, qstnLabel, genStrDataType(qstnDataType),"","","","if else",condExpr);
 		case qstn:computableQuestion(str cqstnIdent, str cqstnLabel, DataType cqstnDataType, Expr cqstnExpr) 
-			: jenv = addJavaQstn(jenv, cqstnIdent, cqstnLabel, genStrDataType(cqstnDataType), genQstnStrExpr(cqstnExpr),genStrLhsExpr(cqstnExpr),genStrRhsExpr(cqstnExpr),"if",condExpr);
+			: jenv = addJavaQstn(jenv, cqstnIdent, cqstnLabel, genStrDataType(cqstnDataType), genQstnStrExpr(cqstnExpr),genStrLhsExpr(cqstnExpr),genStrRhsExpr(cqstnExpr),"if else",condExpr);
 	}
   return jenv;
 }
 
-private JENV genElseCondQstn(list[Element] elseQstns, JENV jenv){
+private JENV genElseCondQstn(list[Element] elseQstns, JENV jenv, str condExpr){
 	top-down visit(elseQstns){
 		case qstn:singleQuestion(str qstnIdent, str qstnLabel, DataType qstnDataType) 
-			: jenv = addJavaQstn(jenv, qstnIdent, qstnLabel, genStrDataType(qstnDataType),"","","","else","");
+			: jenv = addJavaQstn(jenv, qstnIdent, qstnLabel, genStrDataType(qstnDataType),"","","","else",condExpr);
 		case qstn:computableQuestion(str cqstnIdent, str cqstnLabel, DataType cqstnDataType, Expr cqstnExpr) 
-			: jenv = addJavaQstn(jenv, cqstnIdent, cqstnLabel, genStrDataType(cqstnDataType), genQstnStrExpr(cqstnExpr),genStrLhsExpr(cqstnExpr),genStrRhsExpr(cqstnExpr),"else","");
+			: jenv = addJavaQstn(jenv, cqstnIdent, cqstnLabel, genStrDataType(cqstnDataType), genQstnStrExpr(cqstnExpr),genStrLhsExpr(cqstnExpr),genStrRhsExpr(cqstnExpr),"else",condExpr);
 	}
   return jenv;
 }
@@ -158,7 +158,7 @@ private str genStrRhsExpr(Expr expr){
 
 private str genStrExpr(Expr expr){
 	str output = "";
-	top-down visit (expr){
+		visit (expr){
 	    case ident(str name)
 			: output = genStrIdent(expr);
 		case eq(lhs, rhs) 

@@ -65,7 +65,7 @@ private OENV getOutline(cond:singleIfCondition(Expr ifEval, list[Element] ifQstn
 private OENV getOutline(cond:ifElseCondition(Expr ifEval, list[Element] ifQstns, list[Element] elseQstns), OENV nds) {
 	nds0 = getOutline(ifQstns, nds);
 	nds1 = getOutline(elseQstns, nds0);
-	nds2 = addCond(nds1, "If Else", ifEval, cond@location);
+	nds2 = addCond(nds1, "IfElse", ifEval, cond@location);
 	return nds2 ;
 }
 
