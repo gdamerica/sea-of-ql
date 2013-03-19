@@ -24,7 +24,7 @@ public str genJavaFile(form(str id, list[Element] fElems)){
 			'import java.util.*;
 			'import java.awt.*;
 			'import java.io.*;\n
-			'public class <id> extends JFrame implements ActionListener, CaretListener, MouseMotionListener{
+			'public class <id> extends JFrame implements ActionListener, CaretListener, MouseMotionListener, Runnable{
 			'	private static final long serialVersionUID = 5113924929073384257L;
    		  	'	JPanel panel;
     		'	Queue\<String\> qstn = new LinkedList\<String\>();
@@ -48,6 +48,7 @@ public str genJavaFile(form(str id, list[Element] fElems)){
 			'	<genJavaSimpleAction(jenv)>
 			'	<genJavaXmlHandler(jenv)>
 			'	<genMainMethod(id)>
+			'	<genJavaRun(jenv)>
 			'    @Override
     		'	public void caretUpdate(CaretEvent arg0){
 			'		// TODO Auto-generated method stub
@@ -75,14 +76,18 @@ private str genJpanelObj(JENV jenv){
 private str genMainMethod(str id){
 	return 	"public static void main(String[]args){
 			'	<id> frame = new <id>();
+			'	Thread t = new Thread(frame);
+			'	t.start();
 			'}";
 }
 private str genJavaActions(JENV jenv){
 	list[str] output = [];
-	list[str] created = [];	
+	list[str] created = [];
+	list[str] ids = [obj.id | obj <- jenv.qstns];
+	list[str] tempCond = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == ""), (obj.condExpr in ids)];	
 	for(obj <- jenv.qstns){
-		if((obj.condExpr notin created) && (obj.id notin created)){
-			output += genJavaAction(jenv,obj);
+		if((obj.condExpr notin created) && (obj.id notin created) && (obj.condExpr in tempCond)){
+			output += genJavaAction(jenv,true,obj);
 			created += obj.condExpr;
 		}
 	}
@@ -91,19 +96,17 @@ private str genJavaActions(JENV jenv){
 /**
 * This function will generate the JAVA funcionality 
 */ 
-private str genJavaAction(JENV jenv, tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] theObj){
+private str genJavaAction(JENV jenv, bool objType, tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] theObj){
 	str header = "";
 	str objects = "";
 	str elseObjects = "";
 	str rmvObjects = "";
 	str rmvElseObjects = "";
 	str output = "";
-	list[str] tempCond = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == "")];
 	list[str] created = [];
 	list[str] listObj = [];
 	list[str] listElseObj = [];
 	
-	if(theObj.condExpr in tempCond){
 			for(obj <- jenv.qstns){
 				if(obj.condExpr == theObj.condExpr){
 					if(obj.cond == "if else"){
@@ -139,11 +142,22 @@ private str genJavaAction(JENV jenv, tuple[str id, str label, str qstnDataType, 
 			}
 		}
 		objects += ListToStr(listObj);	
-			
-			header  = 	"public void check<theObj.condExpr>(){
-						'	if(<theObj.condExpr>yes.isSelected()){
-						'		<theObj.condExpr> = \"Yes\";
-						'		map.put(\"<theObj.condExpr>\", <theObj.condExpr>);";
+			if(objType){	
+				header  = 	"public void check<theObj.condExpr>(){
+							'	if(<theObj.condExpr>){
+							'		<theObj.condExpr> = false;
+							'		Ans<theObj.condExpr> = \"Yes\";
+							'		map.put(\"<theObj.condExpr>\", Ans<theObj.condExpr>);";
+			} else {
+				header  = 	"public void run() {
+							'panel.addMouseMotionListener(new MouseMotionListener() {
+				 			'@Override
+				 			'public void mouseMoved(MouseEvent arg0) {
+				 			'	try {
+				 			'	if(<theObj.condExpr>){
+							'	 	<theObj.id> = \"Yes\";
+							'		map.put(\"<theObj.id>\", <theObj.id>);\n";
+			}				
 		
 		if(theObj.cond == "if"){
 			output += 	"<header>
@@ -167,42 +181,86 @@ private str genJavaAction(JENV jenv, tuple[str id, str label, str qstnDataType, 
 				}
 			}
 			elseObjects += ListToStr(listElseObj);	
-					output += 	"<header>
-								' 	<objects>
-								'<rmvElseObjects>
-								'panel.revalidate();
-								'validate();
-								'pack(); 
-								' } else {
-								'	<elseObjects>
-								'<rmvObjects>
-	 							'panel.revalidate();
-								'validate();
-								'pack(); 
-								'	}
-								'}\n";
-		}
-	}					
+		
+						output += 	"<header>
+									' 	<objects>
+									'<rmvElseObjects>
+									'panel.revalidate();
+									'validate();
+									'pack(); 
+									' } else {
+									'	<theObj.condExpr> = true;
+									'	<elseObjects>
+									'<rmvObjects>
+	 								'panel.revalidate();
+									'validate();
+									'pack(); 
+									'	}
+									'}\n";
+		}				
 	return output;			
 }
 
+	
+				 		
 private str genJavaSimpleAction(JENV jenv){
 	str output = "";
-	str temp = "";
 	list[str] tempCond = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == "")];
-	list[str] lsOutput = [];
+	list[str] fil = [obj.id | obj <- jenv.qstns, (obj.cond == ""), (obj.id notin tempCond)];
 	for(obj <- jenv.qstns){
-		if((obj.id notin tempCond) && (obj.expr == "") && (obj.qstnDataType == "boolean")){
-			temp += "public void check<obj.id>(){
-					'	<obj.id> = \"Yes\";
-					'	map.put(\"<obj.id>\", <obj.id>);\n
-					'}\n";
+		if(obj.id in fil){
+			if(obj.qstnDataType == "boolean"){ 
+				output += "public void check<obj.id>(){
+						'	Ans<obj.id> = \"Yes\";
+						'	map.put(\"<obj.id>\", Ans<obj.id>);\n
+						'}\n";
+			} else {
+				output += "public void check<obj.id>(){
+						'	<obj.id> = \"Yes\";
+						'	map.put(\"<obj.id>\", <obj.id>);\n
+						'}\n";
+			}	
 		}
-}
+	}
 	return output;
-
 }
-
+private str genJavaRun(JENV jenv){
+	bool found = false;
+	list[str] output = [];
+	list[str] created = [];
+	list[str] ids = [obj.id | obj <- jenv.qstns];
+	list[str] fil = [obj.condExpr | obj <- jenv.qstns, !(obj.cond == ""), (obj.condExpr notin ids)];	
+	for(obj <- jenv.qstns){
+		if((obj.condExpr in fil) && (obj.condExpr notin created)){
+			output += genJavaAction(jenv,false,obj);
+			created += obj.condExpr;
+			found = true;
+		}
+	}
+	if(found){
+		output += 	" 	catch(NumberFormatException e) {
+					'		invalidInput();
+					'	}
+					'}
+					'@Override
+					'	public void mouseDragged(MouseEvent e) {
+					'	// TODO Auto-generated method stub
+					'	}
+					'});
+					'	try {
+					'		Thread.sleep(5000);
+	    			'		} catch (InterruptedException e1) {
+					'			// TODO Auto-generated catch block
+					'			e1.printStackTrace();
+	    			'		}
+					'}\n";	
+	} else {
+		output += 	"public void run() {
+					'	// TODO Auto-generated method stub
+					'}\n";
+	}			 		
+	return ListToStr(output);
+}
 private str genJavaCompObjHandlers(tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] obj){
 	str output = "";
 	if(!(obj.expr == "") && !(obj.cond == "")){
@@ -210,6 +268,7 @@ private str genJavaCompObjHandlers(tuple[str id, str label, str qstnDataType, st
 						'qstn.add(<obj.id>label);
 						'labels.add(\"<obj.id>\");
 			 			'panel.add(<obj.id>Textf);
+			 			'<obj.id>Textf.setText(\"000\");
 						'<obj.id>Textf.setEditable(false);
 						'<obj.id>Textf.addMouseMotionListener(this);
 				 		'addMouseMotionListener(this);
@@ -217,12 +276,12 @@ private str genJavaCompObjHandlers(tuple[str id, str label, str qstnDataType, st
 				 		'@Override
 				 		'public void mouseMoved(MouseEvent arg0) {
 				 		'	try {
-				 		'		<obj.id>valf1 = Integer.parseInt(<obj.lhs>);
-				 		'		<obj.id>valf2 = Integer.parseInt(<obj.rhs>);
+				 		'		<obj.id>valf1 = <obj.lhs>;
+				 		'		<obj.id>valf2 = <obj.rhs>;
 				 		'		<obj.id>valres = <obj.id>valf1 <obj.expr> <obj.id>valf2;
-				 		'		<obj.id> = Integer.toString(<obj.id>valres);
-				 		'		map.put(\"<obj.id>\", <obj.id>);
-				 		'		<obj.id>Textf.setText(<obj.id>);
+				 		'		<obj.id> = <obj.id>valres;
+				 		'		map.put(\"<obj.id>\", Integer.toString(<obj.id>));
+				 		'		<obj.id>Textf.setText(Integer.toString(<obj.id>));
 				 		'	}
 				 		' 	catch(NumberFormatException e) {
 				 		'		invalidInput();
@@ -232,36 +291,47 @@ private str genJavaCompObjHandlers(tuple[str id, str label, str qstnDataType, st
 				 		'public void mouseDragged(MouseEvent e) {
 				 		'	// TODO Auto-generated method stub
 				 		'}
-				 		'});";
-	output += "\n";				 		
+				 		'});\n";		 		
 			}
 	return output;
 }
 
-private str genJavaSimObjHandlers(tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] obj){
+private str genJavaSimObjHandlers(tuple[str id, str label, str qstnDataType, str expr, str lhs, str rhs, str cond, str condExpr] theObj){
 	str output = "";
-	output += 	"panel.add(<obj.id>jLabel);
-				'qstn.add(<obj.id>label);
-				'labels.add(\"<obj.id>\");\n";
-		if(obj.qstnDataType == "boolean"){ 
-			output += 	"panel.add(<obj.id>yes);
-						'<obj.id>yes.addActionListener(new ActionListener() {
+	output += 	"panel.add(<theObj.id>jLabel);
+				'qstn.add(<theObj.id>label);
+				'labels.add(\"<theObj.id>\");\n";
+		if(theObj.qstnDataType == "boolean"){ 
+			output += 	"panel.add(<theObj.id>yes);
+						'<theObj.id>yes.addActionListener(new ActionListener() {
 					 	'	@Override\n
 					 	'	public void actionPerformed(ActionEvent e) {
-						'		check<obj.id>();
+						'		check<theObj.id>();
 					 	'	}
 					 	'});\n";
-		}else{
-			output += 	"panel.add(<obj.id>Textf);
-					 	'<obj.id>Textf.addCaretListener(new CaretListener() {
+		}
+		if(theObj.qstnDataType == "string"){ 
+			output += 	"panel.add(<theObj.id>Textf);
+						'<theObj.id>Textf.setText(\"000\");
+					 	'<theObj.id>Textf.addCaretListener(new CaretListener() {
 					 	'	@Override
 						'	public void caretUpdate(CaretEvent arg0) {
-					 	'		<obj.id> = <obj.id>Textf.getText();
-					 	'		map.put(\"<obj.id>\", <obj.id>);
+					 	'		<theObj.id> = <theObj.id>Textf.getText();
+					 	'		map.put(\"<theObj.id>\", <theObj.id>);
 					 	'	}
 					 	'});\n";
-	output += "\n";		
-	}
+		}
+		if(theObj.qstnDataType == "int"){ 
+			output += 	"panel.add(<theObj.id>Textf);
+						'<theObj.id>Textf.setText(\"000\");
+					 	'<theObj.id>Textf.addCaretListener(new CaretListener() {
+					 	'	@Override
+						'	public void caretUpdate(CaretEvent arg0) {
+						' 	<theObj.id> = Integer.parseInt(<theObj.id>Textf.getText().toString());
+    					' 	map.put(\"<theObj.id>\", Integer.toString(<theObj.id>));
+					 	'	}
+					 	'});\n";
+		}
 	return output;
 }
     
@@ -270,22 +340,26 @@ private str genJavaObjects(JENV jenv){
 	list[str] lsOutput = [];
 	for(obj <- jenv.qstns){
 	output += 	"static String <obj.id>label = <obj.label>;
-				'String <obj.id> = \"No Answer\";
 				'JLabel <obj.id>jLabel = new JLabel(<obj.id>label);\n";	
 			if(obj.qstnDataType == "boolean"){ 
-			output += "final JCheckBox <obj.id>yes = new JCheckBox(\"Yes\");\n";
+			output += 	"final JCheckBox <obj.id>yes = new JCheckBox(\"Yes\");
+						'boolean  <obj.id> = true;
+						'String Ans<obj.id> = \"No Answer\";\n";
 			}
 			if((obj.qstnDataType == "int") && (obj.expr == "")){
-				output += "final JTextField <obj.id>Textf = new JTextField(5);\n";	
+				output += 	"final JTextField <obj.id>Textf = new JTextField(5);
+							'int <obj.id> = 0;\n";	
 			}
 			if((obj.qstnDataType == "int") && !(obj.expr == "")){
 				output += 	"int <obj.id>valf1 = 0; 
 							'int <obj.id>valf2 = 0;
 							'int <obj.id>valres = 0; 
-							'final JTextField <obj.id>Textf = new JTextField(5);\n";	
+							'final JTextField <obj.id>Textf = new JTextField(5);
+							'int <obj.id> = 0;\n";	
 			}
 			if((obj.qstnDataType == "string") && (obj.expr == "")){
-				output += "final JTextField <obj.id>Textf = new JTextField(10);\n";
+				output += 	"final JTextField <obj.id>Textf = new JTextField(10);
+							'String <obj.id> = \"No Answer\";\n";	
 			}
 	output += "\n";	
 	lsOutput += output;

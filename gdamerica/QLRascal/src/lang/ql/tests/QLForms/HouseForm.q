@@ -12,7 +12,7 @@ form HouseForm{ SoldHouse: "Did you sell a house in 2010?" boolean
 					KindOfIcome: "What kind of income you have(Family,etc)" string
 					OtherIncome: "Insert your average Monthly income:" int
 				}
-				
+
 }
 
 
